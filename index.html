@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Custom Order Tracker — queue for makers</title>
+<style>
+  :root {
+    --ink: #2b2622;
+    --ink-soft: #6b6259;
+    --paper: #faf7f2;
+    --card: #ffffff;
+    --line: #e7e0d5;
+    --accent: #b3502f;
+    --accent-soft: #f6e3da;
+    --green: #2f7d4f;
+    --green-soft: #e2f1e7;
+    --amber: #a1640b;
+    --amber-soft: #fdf0d8;
+    --red: #b23434;
+    --red-soft: #f9e3e3;
+    --blue: #2d5f8f;
+    --blue-soft: #e2ecf6;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  header.page {
+    padding: 20px 22px 12px;
+    border-bottom: 1px solid var(--line);
+    background: #fffdf9;
+  }
+  header.page h1 {
+    margin: 0;
+    font-size: 21px;
+    letter-spacing: 0.2px;
+  }
+  header.page p { margin: 3px 0 0; color: var(--ink-soft); font-size: 13.5px; }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    padding: 12px 22px;
+    border-bottom: 1px solid var(--line);
+    background: #fffdf9;
+  }
+  button {
+    font: inherit;
+    color: var(--ink);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 13px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: #97431f; color: #fff; }
+  button.small { padding: 3px 9px; font-size: 12.5px; border-radius: 6px; }
+  .spacer { flex: 1; }
+  .totalsbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px 22px;
+  }
+  .totalsbar .tile {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    min-width: 160px;
+  }
+  .tile .label { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.6px; }
+  .tile .value { font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .lane-wrap {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(220px, 1fr));
+    gap: 12px;
+    padding: 0 22px 30px;
+    align-items: start;
+    overflow-x: auto;
+  }
+  .lane {
+    background: #f4efe6;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    min-height: 200px;
+  }
+  .lane h2 {
+    margin: 0;
+    padding: 10px 12px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .lane h2 .count { font-variant-numeric: tabular-nums; }
+  .lane .lane-total {
+    display: block;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    border-top: 1px solid var(--line);
+    font-variant-numeric: tabular-nums;
+  }
+  .cards { padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    box-shadow: 0 1px 2px rgba(43, 38, 34, 0.06);
+  }
+  .card h3 { margin: 0; font-size: 14.5px; }
+  .card .client { color: var(--ink-soft); font-size: 12.5px; margin-top: 1px; }
+  .card .money { margin-top: 7px; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .card .money .balance { font-weight: 650; }
+  .card .notes {
+    margin-top: 6px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .card .actions {
+    margin-top: 9px;
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    display: inline-block;
+    margin-top: 7px;
+    padding: 2px 9px;
+    border-radius: 99px;
+    font-size: 11.5px;
+    font-weight: 600;
+    border: 1px solid transparent;
+  }
+  .chip.ok { background: var(--green-soft); color: var(--green); border-color: #bfe0cb; }
+  .chip.soon { background: var(--amber-soft); color: var(--amber); border-color: #ecd6a2; }
+  .chip.over { background: var(--red-soft); color: var(--red); border-color: #eec2c2; }
+  .chip.none { background: #eee9e1; color: var(--ink-soft); }
+  .empty { color: var(--ink-soft); font-size: 12.5px; padding: 8px; text-align: center; }
+  .summary {
+    margin: 4px 22px 14px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  .summary > button {
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: none;
+    padding: 11px 14px;
+    font-weight: 650;
+  }
+  .summary .body { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; padding: 2px 14px 14px; }
+  .summary h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--ink-soft); }
+  .summary ul { margin: 0; padding: 0 0 0 16px; }
+  .summary li { font-size: 13px; margin-bottom: 3px; }
+  .empty-state {
+    margin: 60px auto;
+    max-width: 480px;
+    text-align: center;
+    color: var(--ink-soft);
+  }
+  /* modals */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(43, 38, 34, 0.45);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px;
+    overflow-y: auto;
+    z-index: 20;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px 22px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 12px 40px rgba(43, 38, 34, 0.25);
+  }
+  .modal h2 { margin: 0 0 14px; font-size: 17px; }
+  .modal label { display: block; font-size: 12.5px; color: var(--ink-soft); margin: 10px 0 3px; }
+  .modal input, .modal select, .modal textarea {
+    width: 100%;
+    font: inherit;
+    padding: 7px 9px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: #fffdf9;
+    color: var(--ink);
+  }
+  .modal textarea { min-height: 70px; resize: vertical; }
+  .modal .row { display: flex; gap: 10px; }
+  .modal .row > div { flex: 1; }
+  .modal .form-actions { margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; }
+  .modal .error { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 1em; }
+  .payment-list { list-style: none; margin: 8px 0 0; padding: 0; }
+  .payment-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--line);
+    font-variant-numeric: tabular-nums;
+  }
+  .payment-list li .spacer { flex: 1; }
+  /* confirmation note */
+  #noteBody .note-sheet {
+    background: #fffdf9;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 24px 26px;
+    font-size: 14.5px;
+  }
+  #noteBody .note-sheet h2 { margin: 0 0 10px; }
+  #noteBody .note-sheet p { margin: 6px 0; }
+  #noteBody .note-sheet .sig { margin-top: 14px; color: var(--ink-soft); }
+  @media print {
+    body.printing > *:not(.modal-backdrop) { display: none !important; }
+    body.printing .modal-backdrop { display: flex !important; position: static; padding: 0; background: none; overflow: visible; }
+    body.printing .modal { max-width: none; box-shadow: none; border-radius: 0; padding: 0; }
+    body.printing .modal .form-actions, body.printing .modal .note-toolbar { display: none !important; }
+    body.printing .note-sheet { border: none; background: none; }
+  }
+  @media (max-width: 1100px) {
+    .lane-wrap { grid-template-columns: repeat(5, 260px); }
+    .summary .body { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header class="page">
+  <h1>Custom Order Tracker</h1>
+  <p>A local queue for commissioned work. Everything lives in this browser's storage — no accounts, no clouds.</p>
+</header>
+
+<div class="toolbar">
+  <button id="btnNew" class="primary">New order</button>
+  <button id="btnCSV">Export CSV</button>
+  <div class="spacer"></div>
+  <label for="makerName" style="font-size:12.5px;color:var(--ink-soft);">Maker name</label>
+  <input id="makerName" style="width:170px;font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:#fffdf9;" type="text">
+</div>
+
+<div class="totalsbar">
+  <div class="tile"><div class="label">Open orders</div><div class="value" id="tCount">0</div></div>
+  <div class="tile"><div class="label">Total order value</div><div class="value" id="tValue">$0.00</div></div>
+  <div class="tile"><div class="label">Deposits in</div><div class="value" id="tPaid">$0.00</div></div>
+  <div class="tile"><div class="label">Balance due</div><div class="value" id="tBalance">$0.00</div></div>
+</div>
+
+<section class="summary">
+  <button id="btnSummaryToggle" aria-expanded="false">Weekly queue summary ▸</button>
+  <div class="body" id="summaryBody" hidden></div>
+</section>
+
+<main class="lane-wrap" id="lanes" aria-label="Order lanes"></main>
+
+<div class="empty-state" id="emptyState" hidden>
+  <p><strong>No commissions on the books yet.</strong></p>
+  <p>Add your first order and it will land in the "Quote sent" lane. Move it along with the arrow buttons as the work progresses.</p>
+</div>
+
+<!-- order editor -->
+<div class="modal-backdrop" id="editBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <h2 id="editTitle">New order</h2>
+    <form id="orderForm">
+      <label for="fTitle">Commission title *</label>
+      <input id="fTitle" type="text" required>
+      <label for="fClient">Client name</label>
+      <input id="fClient" type="text">
+      <label for="fItem">Item description</label>
+      <input id="fItem" type="text" placeholder="e.g. Walnut cutting board, 12″ × 18″">
+      <div class="row">
+        <div>
+          <label for="fTotal">Total price ($)</label>
+          <input id="fTotal" type="number" min="0" step="0.01">
+        </div>
+        <div>
+          <label for="fDeadline">Deadline</label>
+          <input id="fDeadline" type="date">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="fStatus">Status</label>
+          <select id="fStatus"></select>
+        </div>
+        <div>
+          <label for="fPaid">Log deposit / payment ($)</label>
+          <input id="fPaid" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+      <ul class="payment-list" id="fPaymentList"></ul>
+      <label for="fNotes">Client notes</label>
+      <textarea id="fNotes" placeholder="Design choices, care instructions, pickup or shipping plans…"></textarea>
+      <div class="error" id="editError"></div>
+      <div class="form-actions">
+        <button type="button" id="btnCancelEdit">Cancel</button>
+        <button type="submit" id="btnSaveEdit" class="primary">Save order</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- confirmation note -->
+<div class="modal-backdrop" id="noteBackdrop">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div id="noteBody"></div>
+    <div class="form-actions note-toolbar">
+      <button type="button" id="btnCopyNote">Copy text</button>
+      <button type="button" id="btnPrintNote" class="primary">Print note</button>
+      <button type="button" id="btnCloseNote">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const STORE_KEY = 'custom-order-tracker.v1';
+const STATUSES = [
+  { id: 'quote',   label: 'Quote sent' },
+  { id: 'deposit', label: 'Deposit in' },
+  { id: 'making',  label: 'In the making' },
+  { id: 'done',    label: 'Done' },
+  { id: 'shipped', label: 'Shipped' }
+];
+
+function statusLabel(id) {
+  const s = STATUSES.find(function (st) { return st.id === id; });
+  if (!s) throw new Error('Unknown status: ' + id);
+  return s.label;
+}
+function isValidStatus(id) { return STATUSES.some(function (st) { return st.id === id; }); }
+
+function todayYMD(d) {
+  d = d || new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+function parseYMD(s) {
+  const parts = String(s).split('-').map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+function diffDays(fromYMD, toYMD) {
+  const ms = parseYMD(toYMD).getTime() - parseYMD(fromYMD).getTime();
+  return Math.round(ms / 86400000);
+}
+function daysUntil(deadlineYMD, todayStr) {
+  if (!deadlineYMD) return null;
+  return diffDays(todayStr, deadlineYMD);
+}
+
+function chipFor(order, todayStr) {
+  const d = daysUntil(order.deadline, todayStr);
+  if (d === null) return { kind: 'none', label: 'No deadline' };
+  if (d < 0) return { kind: 'over', label: 'Overdue by ' + Math.abs(d) + 'd' };
+  if (d === 0) return { kind: 'over', label: 'Due today' };
+  if (d <= 7) return { kind: 'soon', label: d === 1 ? 'Due in 1 day' : 'Due in ' + d + ' days' };
+  return { kind: 'ok', label: 'Due in ' + d + ' days' };
+}
+
+function paidOf(order) {
+  return (order.payments || []).reduce(function (sum, p) { return sum + (Number(p.amount) || 0); }, 0);
+}
+function balanceOf(order) {
+  return Math.max(0, (Number(order.total) || 0) - paidOf(order));
+}
+function fmtMoney(n) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
+}
+
+function totalsFor(orders) {
+  const t = { count: orders.length, value: 0, paid: 0, balance: 0, byStatus: {} };
+  STATUSES.forEach(function (st) { t.byStatus[st.id] = { count: 0, value: 0, balance: 0 }; });
+  orders.forEach(function (o) {
+    const paid = paidOf(o);
+    const bal = balanceOf(o);
+    t.value += Number(o.total) || 0;
+    t.paid += paid;
+    t.balance += bal;
+    const slot = t.byStatus[o.status];
+    if (slot) {
+      slot.count += 1;
+      slot.value += Number(o.total) || 0;
+      slot.balance += bal;
+    }
+  });
+  return t;
+}
+
+function beginOfWeek(todayStr) {
+  const d = parseYMD(todayStr);
+  const dow = d.getDay();              // 0 Sun .. 6 Sat
+  const back = (dow + 6) % 7;
+  d.setDate(d.getDate() - back);
+  return todayYMD(d);
+}
+
+function weeklyQueue(orders, todayStr) {
+  const weekStart = beginOfWeek(todayStr);
+  const weekEnd = weekStart;
+  const endDate = parseYMD(weekEnd);
+  endDate.setDate(endDate.getDate() + 6);
+  const weekEndYMD = todayYMD(endDate);
+
+  const byStatus = {};
+  STATUSES.forEach(function (st) { byStatus[st.id] = 0; });
+  let dueThisWeek = [];               // deadlines falling inside this week
+  let overdueCount = 0;
+  let depositsThisWeek = 0;
+  let balanceDueOpen = 0;
+
+  orders.forEach(function (o) {
+    if (byStatus[o.status] !== undefined) byStatus[o.status] += 1;
+    if (o.status !== 'shipped') balanceDueOpen += balanceOf(o);
+    if (o.deadline) {
+      if (o.deadline < todayStr) overdueCount += 1;
+      if (o.deadline >= todayStr && o.deadline <= weekEndYMD) {
+        dueThisWeek.push(o);
+      }
+    }
+    (o.payments || []).forEach(function (p) {
+      if (p.date >= weekStart && p.date <= weekEndYMD) depositsThisWeek += Number(p.amount) || 0;
+    });
+  });
+  dueThisWeek.sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; });
+  return {
+    weekStart: weekStart,
+    weekEnd: weekEndYMD,
+    byStatus: byStatus,
+    dueThisWeek: dueThisWeek,
+    overdueCount: overdueCount,
+    depositsThisWeek: depositsThisWeek,
+    balanceDueOpen: balanceDueOpen
+  };
+}
+
+function makeOrder(input) {
+  const seq = Math.floor(Math.random() * 1e9);
+  return {
+    id: 'o' + Date.now().toString(36) + '-' + seq.toString(36),
+    title: input.title,
+    client: input.client || '',
+    item: input.item || '',
+    total: Number(input.total) || 0,
+    deadline: input.deadline || '',
+    status: 'quote',
+    notes: input.notes || '',
+    payments: [],
+    createdAt: input.createdAt || todayYMD(),
+    updatedAt: input.updatedAt || todayYMD()
+  };
+}
+
+function validateOrder(o) {
+  const errors = [];
+  if (!o.title || !String(o.title).trim()) errors.push('A title is required.');
+  if (o.total !== '' && o.total !== undefined && o.total !== null) {
+    const n = Number(o.total);
+    if (Number.isNaN(n) || n < 0) errors.push('Total price must be zero or more.');
+  } else {
+    errors.push('Total price is required.');
+  }
+  if (o.deadline && !/^\d{4}-\d{2}-\d{2}$/.test(o.deadline)) errors.push('Deadline must be a date.');
+  if (o.status && !isValidStatus(o.status)) errors.push('Status is invalid.');
+  return errors;
+}
+
+function shiftOrder(id, delta) {
+  const orders = loadAll().orders;
+  const idx = orders.findIndex(function (o) { return o.id === id; });
+  if (idx === -1) return null;
+  const cur = orders[idx];
+  const curIdx = STATUSES.findIndex(function (s) { return s.id === cur.status; });
+  const nextIdx = Math.min(STATUSES.length - 1, Math.max(0, curIdx + delta));
+  if (nextIdx === curIdx) return loadAll();
+  const savedOrder = orders[idx];
+  const updated = Object.assign({}, savedOrder, { status: STATUSES[nextIdx].id, updatedAt: todayYMD() });
+  saveAll({ orders: orders.slice(0, idx).concat([updated]).concat(orders.slice(idx + 1)) });
+  return loadAll();
+}
+
+function toCSV(orders) {
+  const esc = function (v) {
+    const s = (v === null || v === undefined) ? '' : String(v);
+    if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  };
+  const header = ['Title', 'Client', 'Item', 'Status', 'Deadline', 'Total', 'Paid', 'Balance', 'Notes'];
+  const rows = [header];
+  orders.forEach(function (o) {
+    rows.push([
+      o.title, o.client, o.item, statusLabel(o.status), o.deadline,
+      (Number(o.total) || 0).toFixed(2), paidOf(o).toFixed(2), balanceOf(o).toFixed(2), o.notes
+    ]);
+  });
+  return rows.map(function (r) { return r.map(esc).join(','); }).join('\n');
+}
+
+function confirmationText(order, makerName) {
+  const lines = [];
+  lines.push('Hi ' + (order.client || 'there') + '!');
+  lines.push('');
+  lines.push('Thanks for commissioning "' + order.title + '".' + (order.item ? ' (' + order.item + ')' : ''));
+  lines.push('Current status: ' + statusLabel(order.status) + '.');
+  if (order.deadline) {
+    lines.push('Expected finish: ' + order.deadline + '.');
+  }
+  lines.push('');
+  if (paidOf(order) > 0) {
+    lines.push('Deposit / payments received so far: ' + fmtMoney(paidOf(order)) + '.');
+  }
+  lines.push('Balance remaining: ' + fmtMoney(balanceOf(order)) + '.');
+  if (order.notes) {
+    lines.push('');
+    lines.push('Notes: ' + order.notes);
+  }
+  lines.push('');
+  lines.push('Any questions, just reply. Thanks again!');
+  lines.push('— ' + (makerName || 'Your maker'));
+  return lines.join('\n');
+}
+
+/* ---------- storage ---------- */
+
+const $store = (function () {
+  let backing;
+  try {
+    if (typeof localStorage !== 'undefined') backing = localStorage;
+  } catch (e) { /* file:// with storage disabled, or non-browser */ }
+  if (!backing) {
+    backing = {
+      _m: {},
+      getItem: function (k) { return Object.prototype.hasOwnProperty.call(this._m, k) ? this._m[k] : null; },
+      setItem: function (k, v) { this._m[k] = String(v); }
+    };
+  }
+  return backing;
+})();
+
+function loadAll() {
+  let raw = null;
+  try { raw = $store.getItem(STORE_KEY); } catch (e) { raw = null; }
+  let data;
+  try { data = raw ? JSON.parse(raw) : null; } catch (e) { data = null; }
+  if (!data || !Array.isArray(data.orders)) data = { orders: [], settings: { makerName: '' } };
+  if (!data.settings) data.settings = { makerName: '' };
+  return data;
+}
+function saveAll(data) {
+  try { $store.setItem(STORE_KEY, JSON.stringify(data)); }
+  catch (e) { /* best-effort; nothing to do without a console framework */ }
+  return data;
+}
+function setOrders(orders) {
+  const all = loadAll();
+  all.orders = orders;
+  saveAll(all);
+  return all;
+}
+
+/* ---------- app (browser only) ---------- */
+
+function bootstrap() {
+  let editingId = null;
+  let draftPayments = [];
+
+  const el = function (id) { return document.getElementById(id); };
+
+  const makerInput = el('makerName');
+  makerInput.value = loadAll().settings.makerName || '';
+  makerInput.addEventListener('change', function () {
+    const all = loadAll();
+    all.settings.makerName = makerInput.value;
+    saveAll(all);
+  });
+
+  STATUSES.forEach(function (st) {
+    const opt = document.createElement('option');
+    opt.value = st.id;
+    opt.textContent = st.label;
+    el('fStatus').appendChild(opt);
+  });
+
+  function render() {
+    const all = loadAll();
+    const board = el('lanes');
+    board.innerHTML = '';
+
+    const totals = totalsFor(all.orders);
+    el('tCount').textContent = String(all.orders.length);
+    el('tValue').textContent = fmtMoney(totals.value);
+    el('tPaid').textContent = fmtMoney(totals.paid);
+    el('tBalance').textContent = fmtMoney(totals.balance);
+
+    el('emptyState').hidden = all.orders.length !== 0;
+
+    const today = todayYMD();
+
+    // weekly summary
+    const wq = weeklyQueue(all.orders, today);
+    const sb = el('summaryBody');
+    sb.innerHTML = '';
+    const col1 = sb.appendChild(document.createElement('div'));
+    col1.innerHTML = '<h4>Lane counts</h4>';
+    const ul1 = document.createElement('ul');
+    STATUSES.forEach(function (st) {
+      const li = document.createElement('li');
+      li.textContent = st.label + ': ' + wq.byStatus[st.id];
+      ul1.appendChild(li);
+    });
+    col1.appendChild(ul1);
+
+    const col2 = sb.appendChild(document.createElement('div'));
+    col2.innerHTML = '<h4>This week (' + wq.weekStart + ' – ' + wq.weekEnd + ')</h4>';
+    const ul2 = document.createElement('ul');
+    const liD = document.createElement('li');
+    liD.textContent = 'Deadlines due: ' + (wq.dueThisWeek.length
+      ? wq.dueThisWeek.map(function (o) { return o.title + ' (' + o.deadline + ')'; }).join(', ')
+      : 'none');
+    ul2.appendChild(liD);
+    const liAt = document.createElement('li');
+    liAt.textContent = 'Overdue: ' + wq.overdueCount;
+    ul2.appendChild(liAt);
+    const liDep = document.createElement('li');
+    liDep.textContent = 'Deposits in this week: ' + fmtMoney(wq.depositsThisWeek);
+    ul2.appendChild(liDep);
+    col2.appendChild(ul2);
+
+    const col3 = sb.appendChild(document.createElement('div'));
+    col3.innerHTML = '<h4>Open balance</h4>';
+    const ul3 = document.createElement('ul');
+    const liBal = document.createElement('li');
+    liBal.textContent = 'Balance due on open orders: ' + fmtMoney(wq.balanceDueOpen);
+    ul3.appendChild(liBal);
+    col3.appendChild(ul3);
+
+    // lanes
+    STATUSES.forEach(function (st) {
+      const lane = document.createElement('section');
+      lane.className = 'lane';
+      lane.dataset.status = st.id;
+      const h2 = document.createElement('h2');
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = st.label;
+      const countSpan = document.createElement('span');
+      countSpan.className = 'count';
+      countSpan.textContent = String(totals.byStatus[st.id].count);
+      h2.appendChild(titleSpan);
+      h2.appendChild(countSpan);
+      lane.appendChild(h2);
+
+      const cards = document.createElement('div');
+      cards.className = 'cards';
+
+      const inLane = all.orders.filter(function (o) { return o.status === st.id; })
+        .sort(function (a, b) {
+          if (a.deadline && b.deadline) return a.deadline < b.deadline ? -1 : a.deadline > b.deadline ? 1 : 0;
+          if (a.deadline) return -1;
+          if (b.deadline) return 1;
+          return a.createdAt < b.createdAt ? -1 : 1;
+        });
+
+      if (!inLane.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = '—';
+        cards.appendChild(empty);
+      }
+
+      inLane.forEach(function (o) {
+        const card = document.createElement('article');
+        card.className = 'card';
+
+        const h3 = document.createElement('h3');
+        h3.textContent = o.title;
+        card.appendChild(h3);
+
+        const client = document.createElement('div');
+        client.className = 'client';
+        client.textContent = o.client || 'No client name';
+        card.appendChild(client);
+
+        if (o.item) {
+          const item = document.createElement('div');
+          item.className = 'client';
+          item.textContent = o.item;
+          card.appendChild(item);
+        }
+
+        const chip = chipFor(o, today);
+        const chipEl = document.createElement('span');
+        chipEl.className = 'chip ' + chip.kind;
+        chipEl.textContent = chip.label;
+        card.appendChild(chipEl);
+
+        const money = document.createElement('div');
+        money.className = 'money';
+        const parts = [];
+        if (Number(o.total) > 0) parts.push('Total ' + fmtMoney(Number(o.total)));
+        if (paidOf(o) > 0) parts.push('Paid ' + fmtMoney(paidOf(o)));
+        if (Number(o.total) > 0) {
+          money.innerHTML = parts.join(' &middot; ') + '<br><span class="balance">Balance ' + fmtMoney(balanceOf(o)) + '</span>';
+        } else {
+          money.innerHTML = parts.join(' &middot; ') || 'Total $0.00';
+        }
+        card.appendChild(money);
+
+        if (o.notes) {
+          const notes = document.createElement('div');
+          notes.className = 'notes';
+          notes.textContent = o.notes.length > 90 ? o.notes.slice(0, 90) + '…' : o.notes;
+          card.appendChild(notes);
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+
+        const left = document.createElement('button');
+        left.className = 'small';
+        left.textContent = '◀';
+        left.disabled = st.id === STATUSES[0].id;
+        left.addEventListener('click', function () { shiftOrder(o.id, -1); render(); });
+        const right = document.createElement('button');
+        right.className = 'small';
+        right.textContent = '▶';
+        right.disabled = st.id === STATUSES[STATUSES.length - 1].id;
+        right.addEventListener('click', function () { shiftOrder(o.id, 1); render(); });
+        actions.appendChild(left);
+        actions.appendChild(right);
+
+        const edit = document.createElement('button');
+        edit.className = 'small';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', function () { openEditor(o.id); });
+        const note = document.createElement('button');
+        note.className = 'small';
+        note.textContent = 'Note';
+        note.addEventListener('click', function () { openNote(o.id); });
+        const del = document.createElement('button');
+        del.className = 'small';
+        del.textContent = 'Delete';
+        del.addEventListener('click', function () {
+          if (!window.confirm('Delete "' + o.title + '"? This removes its payments too.')) return;
+          const remaining = loadAll().orders.filter(function (x) { return x.id !== o.id; });
+          setOrders(remaining);
+          render();
+        });
+        actions.appendChild(edit);
+        actions.appendChild(note);
+        actions.appendChild(del);
+        card.appendChild(actions);
+
+        cards.appendChild(card);
+      });
+
+      lane.appendChild(cards);
+
+      const foot = document.createElement('span');
+      foot.className = 'lane-total';
+      foot.textContent = 'Lane value ' + fmtMoney(totals.byStatus[st.id].value) + ' · balance ' + fmtMoney(totals.byStatus[st.id].balance);
+      lane.appendChild(foot);
+      board.appendChild(lane);
+    });
+  }
+
+  function openEditor(orderId) {
+    const all = loadAll();
+    const o = orderId ? all.orders.find(function (x) { return x.id === orderId; }) : null;
+    editingId = o ? o.id : null;
+    draftPayments = o ? (o.payments || []).slice() : [];
+    el('editTitle').textContent = o ? 'Edit order' : 'New order';
+    el('fTitle').value = o ? o.title : '';
+    el('fClient').value = o ? o.client : '';
+    el('fItem').value = o ? o.item : '';
+    el('fTotal').value = o ? (o.total || '') : '';
+    el('fDeadline').value = o ? o.deadline : '';
+    el('fStatus').value = o ? o.status : 'quote';
+    el('fPaid').value = '';
+    el('fNotes').value = o ? o.notes : '';
+    el('editError').textContent = '';
+    renderDraftPayments();
+    el('editBackdrop').classList.add('open');
+    el('fTitle').focus();
+  }
+
+  function renderDraftPayments() {
+    const list = el('fPaymentList');
+    list.innerHTML = '';
+    draftPayments.forEach(function (p, i) {
+      const li = document.createElement('li');
+      const label = document.createElement('span');
+      label.textContent = fmtMoney(p.amount) + ' — ' + p.date;
+      const spacer = document.createElement('span');
+      spacer.className = 'spacer';
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'small';
+      rm.textContent = 'Remove';
+      rm.addEventListener('click', function () {
+        draftPayments.splice(i, 1);
+        renderDraftPayments();
+      });
+      li.appendChild(label);
+      li.appendChild(spacer);
+      li.appendChild(rm);
+      list.appendChild(li);
+    });
+    if (draftPayments.length) {
+      const sum = document.createElement('li');
+      sum.textContent = 'Received so far: ' + fmtMoney(draftPayments.reduce(function (s, p) { return s + (Number(p.amount) || 0); }, 0));
+      list.appendChild(sum);
+    }
+  }
+
+  el('fPaid').addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      const amt = Number(el('fPaid').value);
+      if (el('fPaid').value !== '' && amt > 0) {
+        draftPayments.push({ amount: Math.round(amt * 100) / 100, date: todayYMD() });
+        el('fPaid').value = '';
+        renderDraftPayments();
+      }
+    }
+  });
+
+  el('btnNew').addEventListener('click', function () { openEditor(null); });
+
+  el('btnCancelEdit').addEventListener('click', function () {
+    el('editBackdrop').classList.remove('open');
+  });
+
+  el('orderForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    const all = loadAll();
+    const paidEntry = Number(el('fPaid').value);
+    const candidate = {
+      title: el('fTitle').value.trim(),
+      client: el('fClient').value.trim(),
+      item: el('fItem').value.trim(),
+      total: el('fTotal').value,
+      deadline: el('fDeadline').value,
+      status: el('fStatus').value,
+      notes: el('fNotes').value
+    };
+    const errors = validateOrder(candidate);
+    if (!candidate.status) errors.push('Status is required.');
+    if (el('fPaid').value !== '' && (!Number.isFinite(paidEntry) || paidEntry <= 0)) {
+      errors.push('Payment must be a positive amount (or leave blank).');
+    }
+    if (errors.length) {
+      el('editError').textContent = errors[0];
+      return;
+    }
+    const payments = draftPayments.slice();
+    if (el('fPaid').value !== '' && paidEntry > 0) {
+      payments.push({ amount: Math.round(paidEntry * 100) / 100, date: todayYMD() });
+    }
+    if (editingId) {
+      const idx = all.orders.findIndex(function (o) { return o.id === editingId; });
+      if (idx !== -1) {
+        const prev = all.orders[idx];
+        all.orders[idx] = Object.assign({}, prev, {
+          title: candidate.title,
+          client: candidate.client,
+          item: candidate.item,
+          total: Math.round((Number(candidate.total) || 0) * 100) / 100,
+          deadline: candidate.deadline,
+          status: candidate.status,
+          notes: candidate.notes,
+          payments: payments,
+          updatedAt: todayYMD()
+        });
+        saveAll(all);
+      }
+    } else {
+      const now = todayYMD();
+      const o = makeOrder(candidate);
+      o.total = Math.round((Number(candidate.total) || 0) * 100) / 100;
+      o.status = candidate.status;
+      o.deadline = candidate.deadline;
+      o.client = candidate.client;
+      o.item = candidate.item;
+      o.notes = candidate.notes;
+      o.createdAt = now;
+      o.updatedAt = now;
+      o.payments = payments;
+      all.orders.push(o);
+      saveAll(all);
+    }
+    el('editBackdrop').classList.remove('open');
+    render();
+  });
+
+  el('btnCSV').addEventListener('click', function () {
+    const orders = loadAll().orders;
+    const csv = toCSV(orders);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'custom-orders-' + todayYMD() + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  });
+
+  el('btnSummaryToggle').addEventListener('click', function () {
+    const sb = el('summaryBody');
+    const open = sb.hidden;
+    sb.hidden = !open;
+    this.textContent = open ? 'Weekly queue summary ▾' : 'Weekly queue summary ▸';
+    this.setAttribute('aria-expanded', String(open));
+  });
+
+  function openNote(orderId) {
+    const all = loadAll();
+    const o = all.orders.find(function (x) { return x.id === orderId; });
+    if (!o) return;
+    const maker = all.settings.makerName || 'Your maker';
+    const sheet = document.createElement('div');
+    sheet.className = 'note-sheet';
+    const h2 = document.createElement('h2');
+    h2.textContent = 'Order confirmation';
+    const pre = document.createElement('pre');
+    pre.style.whiteSpace = 'pre-wrap';
+    pre.style.font = 'inherit';
+    pre.style.margin = '0';
+    pre.textContent = confirmationText(o, maker);
+    sheet.appendChild(h2);
+    sheet.appendChild(pre);
+    const body = el('noteBody');
+    body.innerHTML = '';
+    body.appendChild(sheet);
+    body.dataset.orderTitle = o.title;
+
+    el('noteBackdrop').classList.add('open');
+    el('btnPrintNote').onclick = function () {
+      document.body.classList.add('printing');
+      window.print();
+      window.setTimeout(function () {
+        document.body.classList.remove('printing');
+      }, 200);
+    };
+    el('btnCopyNote').onclick = function () {
+      const text = confirmationText(o, maker);
+      const done = function () {
+        el('btnCopyNote').textContent = 'Copied';
+        setTimeout(function () { el('btnCopyNote').textContent = 'Copy text'; }, 1200);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
+      } else {
+        fallbackCopy(text);
+        done();
+      }
+    };
+  }
+
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) { /* clipboard blocked */ }
+    ta.remove();
+  }
+
+  el('btnCloseNote').addEventListener('click', function () {
+    el('noteBackdrop').classList.remove('open');
+    document.body.classList.remove('printing');
+  });
+
+  window.addEventListener('afterprint', function () {
+    document.body.classList.remove('printing');
+  });
+
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') {
+      el('editBackdrop').classList.remove('open');
+      el('noteBackdrop').classList.remove('open');
+    }
+  });
+
+  render();
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  } else {
+    bootstrap();
+  }
+}
+</script>
+</body>
+</html>
